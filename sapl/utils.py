@@ -17,6 +17,7 @@ from django.contrib import admin
 from django.contrib.contenttypes.fields import (GenericForeignKey, GenericRel,
                                                 GenericRelation)
 from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
 from django.shortcuts import redirect
 from django.utils.translation import ugettext_lazy as _
 import django_filters
@@ -652,24 +653,31 @@ def delete_texto(sender, instance, **kwargs):
     update_index = UpdateIndexCommand()
     update_index.start()
 
-def build_redirect_view(nome, lista_pk_antiga):
+def build_redirect_view(nome, pk_antiga, parametros_renomeados):
 
     def view(request):
-        args = [request.GET[k] for k in lista_pk_antiga]
-        return redirect(nome, *args)
+        args = [request.GET[k] for k in pk_antiga]
+        if parametros_renomeados:
+            parametros = [p.split(':') for p in parametros_renomeados]
+            querystring = ['{}={}'.format(novo, request.GET[antigo])
+                           for antigo, novo in parametros]
+            return redirect('{}?{}'.format(reverse(nome, *args),
+                                           '&'.join(querystring)))
+        else:
+            return redirect(nome, *args)
 
     return view
 
 
 @listify
 def redirecionamento_urls_antigas(namespace, *antigos_para_novos):
-    for url_antiga, destino in antigos_para_novos:
+    for origem, destino, *parametros_renomeados in antigos_para_novos:
+        partes = urlparse(origem)
 
-        partes = urlparse(url_antiga)
         regex = '^{}$'.format(partes.path)
-        lista_pk_antiga = parse_qs(partes.query).keys()
 
+        pk_antiga = parse_qs(partes.query).keys()
         nome = '{}:{}'.format(namespace, destino) if namespace else destino
-        view = build_redirect_view(nome, lista_pk_antiga)
+        view = build_redirect_view(nome, pk_antiga, parametros_renomeados)
 
         yield url(regex, view)

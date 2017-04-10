@@ -59,9 +59,7 @@ urlpatterns = [
     ('consultas/parlamentar/parlamentar_mostrar_proc?cod_parlamentar=123',
      'parlamentar_detail'),
 
-    # TODO considerar caso com legislatura
-    # consultas/parlamentar/parlamentar_index_html?hdn_num_legislatura=13
     ('consultas/parlamentar/parlamentar_index_html',
-     'parlamentar_list'),
+     'parlamentar_list', 'hdn_num_legislatura:pk'),
 
 )
