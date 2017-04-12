@@ -1,30 +1,32 @@
+from datetime import date
+from functools import wraps
 import hashlib
 import logging
 import os
 import re
-from datetime import date
-from functools import wraps
-from unicodedata import normalize as unicodedata_normalize
 from subprocess import PIPE, call
 from threading import Thread
 
-import django_filters
-import magic
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import HTML, Button
 from django import forms
 from django.apps import apps
 from django.conf import settings
+from django.conf.urls import url
 from django.contrib import admin
 from django.contrib.contenttypes.fields import (GenericForeignKey, GenericRel,
                                                 GenericRelation)
 from django.core.exceptions import ValidationError
+from django.shortcuts import redirect
 from django.utils.translation import ugettext_lazy as _
+import django_filters
 from floppyforms import ClearableFileInput
+import magic
 from reversion.admin import VersionAdmin
-
 from sapl.crispy_layout_mixin import SaplFormLayout, form_actions, to_row
 from sapl.settings import BASE_DIR, PROJECT_DIR
+from unicodedata import normalize as unicodedata_normalize
+from urllib.parse import parse_qs, urlparse
 
 sapl_logger = logging.getLogger(BASE_DIR.name)
 
@@ -368,8 +370,8 @@ def fabrica_validador_de_tipos_de_arquivo(lista, nome):
 
     def restringe_tipos_de_arquivo(value):
         if not os.path.splitext(value.path)[1][:1]:
-                raise ValidationError(_(
-                    'Não é possível fazer upload de arquivos sem extensão.'))
+            raise ValidationError(_(
+                'Não é possível fazer upload de arquivos sem extensão.'))
 
         mime = magic.from_buffer(value.read(), mime=True)
         if mime not in lista:
@@ -635,7 +637,6 @@ def texto_upload_path(instance, filename, subpath=''):
 
     return path
 
-
 class UpdateIndexCommand(Thread):
     def run(self):
         call([PROJECT_DIR.child('manage.py'), 'update_index'],
@@ -650,3 +651,16 @@ def save_texto(sender, instance, **kwargs):
 def delete_texto(sender, instance, **kwargs):
     update_index = UpdateIndexCommand()
     update_index.start()
+
+@listify
+def redirecionamento_urls_antigas(namespace, *antigos_para_novos):
+    for url_antiga, destino in antigos_para_novos:
+        partes = urlparse(url_antiga)
+        regex = '^{}$'.format(partes.path)
+        pk_antiga = parse_qs(partes.query).keys()
+
+        def view_redirecionamento(request):
+            args = [request.GET[k] for k in pk_antiga]
+            return redirect('{}:{}'.format(namespace, destino), *args)
+
+        yield url(regex, view_redirecionamento)

@@ -12,6 +12,7 @@ from sapl.parlamentares.views import (CargoMesaCrud, ColigacaoCrud,
                                       SessaoLegislativaCrud,
                                       TipoAfastamentoCrud, TipoDependenteCrud,
                                       TipoMilitarCrud, VotanteView)
+from sapl.utils import redirecionamento_urls_antigas
 
 from .apps import AppConfig
 
@@ -51,4 +52,14 @@ urlpatterns = [
 
     url(r'^mesa-diretora/$',
         MesaDiretoraView.as_view(), name='mesa_diretora'),
-]
+
+] + redirecionamento_urls_antigas(
+    app_name,
+    ('consultas/parlamentar/parlamentar_mostrar_proc?cod_parlamentar=123',
+     'parlamentar_detail'),
+
+    # TODO considerar caso com legislatura
+    # consultas/parlamentar/parlamentar_index_html?hdn_num_legislatura=13
+    ('consultas/parlamentar/parlamentar_index_html',
+     'parlamentar_list'),
+)
